@@ -5,8 +5,9 @@ require __DIR__ . '/../vendor/autoload.php';
 use Dotenv\Dotenv;
 
 // Carrega o .env
-$dotenv = Dotenv::createImmutable(__DIR__ . '/../');
-$dotenv->load();
+
+$dotenv = Dotenv::createUnsafeImmutable(__DIR__ . '/../');
+$dotenv->safeLoad();
 
 define('URL', '/api');
 
