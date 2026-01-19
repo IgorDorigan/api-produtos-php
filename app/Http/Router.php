@@ -2,6 +2,8 @@
 
 namespace App\Http;
 
+use App\Http\ContainerInjection;
+
 
 class Router
 {
@@ -84,7 +86,8 @@ class Router
 
                 if (is_array($callback) && class_exists($callback[0])){
                     [$class, $method] = $callback;
-                    $controller = new $class();
+                    $container = new ContainerInjection();
+                    $controller = $container->make($class);
 
                     echo call_user_func_array([$controller, $method], $matches);
                     return;
