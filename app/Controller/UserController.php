@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Orders;
 use App\Services\Pagination;
 use App\Helpers\Validate;
+use App\Middleware\RefreshMiddleware;
 use App\Services\OrderService;
 use Exception;
 
@@ -55,7 +56,7 @@ class UserController
             $camposObrigatorios = ['name', 'email', 'password', 'valor'];
             foreach ($camposObrigatorios as $campo) {
                 if (empty($dados[$campo])) {
-                    return ApiResponse::send(null, false, 403, "Forneça todos os campos do usuário");
+                    return ApiResponse::send(null, false, 400, "Campo $campo faltando");
                 }
             }
 
@@ -111,21 +112,15 @@ class UserController
 
         if ($userLogin !== null) {
 
-            $token = JwtService::generate([
-                'id' => $userLogin->id,
-                'name' => $userLogin->getName(),
-                'email' => $userLogin->getEmail(),
-                'password' => $userLogin->getPassword(),
-                'role' => $userLogin->getRole()
-            ]);
+            $token = JwtService::generateTokens($userLogin);
 
             $userResponse = [
                 'user' => $userLogin->toArray(),
-                'token' => $token
+                'token' => $token['access_token'],
+                'refresh_token' => $token['refresh_token']
             ];
 
             $userLogin->setPassword(null);
-
 
             ApiResponse::send($userResponse, true, 200, "Login realizado com sucesso");
             exit;
@@ -233,7 +228,6 @@ class UserController
             $pedido = OrderService::processarCompra($user, $product, $quantidade);
 
             ApiResponse::send($pedido, true, 200, "Compra feita com sucesso");
-
         } catch (\Throwable $e) {
             if (in_array($e->getMessage(), ["Saldo insuficiente", "Estoque insuficiente"])) {
                 ApiResponse::send(null, false, 400, $e->getMessage());
@@ -242,5 +236,29 @@ class UserController
 
             ApiResponse::send(null, false, 500, "Erro interno ao processar a compra");
         }
+    }
+
+    public static function refreshToken()
+    {
+
+        $decoded = RefreshMiddleware::$user;
+
+        $user = (new User())->findById($decoded->id);
+
+        if (!$user) {
+            ApiResponse::send(null, false, 404, "Usuário não encontrado");
+            exit;
+        }
+
+
+        $tokens = JwtService::generateTokens($user);
+
+        $response = [
+            'user' => $user->toArray(),
+            'access_token' => $tokens['access_token'],
+            'refresh_token' => $tokens['refresh_token']
+        ];
+
+        ApiResponse::send($response, true, 200, "Novo token gerado com sucesso");
     }
 }

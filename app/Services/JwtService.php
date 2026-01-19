@@ -4,24 +4,48 @@ namespace App\Services;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-
+use App\Models\User;
+use Exception;
 
 class JwtService
 {
     private static $key = 'minha-chave-secreta-super-segura-1234567890';
 
-    public static function generate($payload)
+    public static function generateTokens(User $user)
     {
-        return JWT::encode($payload, self::$key, 'HS256');
+        $accessPayload = [
+            'id' => $user->id,
+            'email' => $user->getEmail(),
+            'role' => $user->getRole(),
+            'exp' => time() + 30 
+        ];
+
+        $refreshPayload = [
+            'id' => $user->id,
+            'type' => 'refresh',
+            'exp' => time() + 180
+        ];
+
+        $accessToken  = JWT::encode($accessPayload, self::$key, 'HS256');
+        $refreshToken = JWT::encode($refreshPayload, self::$key, 'HS256');
+
+        return [
+            'access_token'  => $accessToken,
+            'refresh_token' => $refreshToken
+        ];
     }
 
     public static function validate($token)
     {
         try {
-            $decoded = JWT::decode($token, new Key(self::$key, 'HS256'));
-            return $decoded;
+            return JWT::decode($token, new Key(self::$key, 'HS256'));
+        } catch (\Firebase\JWT\ExpiredException $e) {
+            // Token expirado
+            throw new Exception("expired");
         } catch (\Exception $e) {
-            return null;
+            // Token inválido
+            throw new Exception("invalid");
         }
+       
     }
 }

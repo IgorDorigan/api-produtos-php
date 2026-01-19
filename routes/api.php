@@ -7,9 +7,7 @@ use App\Middleware\AuthAdminMiddleware;
 use App\Controller\RecommendationController;
 use App\Controller\AdminController;
 use App\Controller\ProductController;
-
-
-
+use App\Middleware\RefreshMiddleware;
 
 // Rota para listar todos os usuarios
 $router->get('/users', [UserController::class, 'index']);
@@ -24,6 +22,11 @@ $router->post('/login', [UserController::class, 'login']);
 // Rota responsavél por efetuar uma compra do usuario
 $router->post('/buy', [UserController::class, 'comprarProduto'], [
     AuthMiddleware::class
+]);
+
+// Rota para o usuario gerar um novo token
+$router->get('/refresh', [UserController::class, 'refreshToken'], [
+    RefreshMiddleware::class
 ]);
 
 
