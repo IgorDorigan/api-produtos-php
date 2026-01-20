@@ -8,7 +8,7 @@ use Exception;
 
 class ProductService
 {
-    public static function storeProduct($data)
+    public static function storeProduct($data, Product $product)
     {
         Validate::validateFields($data, 'product');
 
@@ -18,7 +18,7 @@ class ProductService
         }
 
         // Criação do produto no Model
-        return (new Product())->store($data);
+        return $product->store($data);
     }
     
 
@@ -30,16 +30,13 @@ class ProductService
         }
 
         $novoEstoque = $product->getEstoque() - $quantidade;
+        
         $disponivel = $novoEstoque > 0 ? 1 : 0;
-
-        $result = $product->updateEstoqueBanco($novoEstoque, $disponivel);
-
-        if (!$disponivel){
-            throw new Exception("Erro ao atualizar estoque no banco");
-        }
 
         $product->setEstoque($novoEstoque);
         $product->setDisponivel($disponivel);
+
+        $product->updateEstoqueBanco($novoEstoque, $disponivel);
 
         return true;
 

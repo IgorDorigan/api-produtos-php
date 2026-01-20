@@ -17,13 +17,13 @@ class JwtService
             'id' => $user->id,
             'email' => $user->getEmail(),
             'role' => $user->getRole(),
-            'exp' => time() + 30 
+            'exp' => time() + 600
         ];
 
         $refreshPayload = [
             'id' => $user->id,
             'type' => 'refresh',
-            'exp' => time() + 180
+            'exp' => time() + 86400
         ];
 
         $accessToken  = JWT::encode($accessPayload, self::$key, 'HS256');

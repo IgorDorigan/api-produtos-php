@@ -51,7 +51,7 @@ class Product
         }
     }
 
-     public function update($data)
+    public function update($data)
     {
         // Prepara o SQL dinamicamente para aceitar patch e put
 
@@ -80,7 +80,6 @@ class Product
             $stmt2->execute([':id' => $data['id']]);
 
             return $stmt2->fetch(PDO::FETCH_OBJ);
-
         } catch (PDOException $e) {
             throw new Exception($e->getMessage());
         }
@@ -90,18 +89,24 @@ class Product
 
     public function findById($id)
     {
+        $db = $this->db; // ou $this->db, depende da implementação
         $sql = "SELECT * FROM products WHERE id = :id";
-        $stmt = $this->db->prepare($sql);
+        $stmt = $db->prepare($sql);
 
         try {
             $stmt->execute([':id' => $id]);
             $dados = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            foreach ($dados as $campo => $valor) {
-                $this->$campo = $valor;
-            }
+            if (!$dados) return null;
 
-            return $this;
+            $product = new self();
+            $product->id = (int)$dados['id'];
+            $product->nome = $dados['nome'];
+            $product->valor = (float)$dados['valor'];
+            $product->estoque = (int)$dados['estoque'];
+            $product->disponivel = (bool)$dados['disponivel'];
+
+            return $product;
         } catch (PDOException $e) {
             die("Erro retornar produto: " . $e->getMessage());
         }
@@ -135,7 +140,7 @@ class Product
                 ':disponivel' => $disponivel,
                 ':id' => $this->id
             ]);
-        } catch (PDOException $e) {
+        } catch (PDOException) {
             throw new Exception("Erro ao atualizar estoque:");
             return false;
         }
@@ -161,7 +166,7 @@ class Product
 
     public function setEstoque($qtd)
     {
-        $this->estoque -= $qtd;
+        $this->estoque = $qtd;
     }
 
     public function getListaCategorias()

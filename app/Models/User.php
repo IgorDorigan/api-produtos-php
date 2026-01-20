@@ -48,7 +48,7 @@ class User
                 ':name' => $data['name'],
                 ':email' => $data['email'],
                 ':password' => $data['password'],
-                ':role' => $data['role'] ?? 'user',
+                ':role' => $data['role'] || $data['role'] === '' ?? 'user',
                 ':valor' => $data['valor']
             ]);
 

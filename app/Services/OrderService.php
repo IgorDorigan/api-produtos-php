@@ -25,9 +25,10 @@ class OrderService
         }
 
         ProductService::atualizarEstoque($product, $quantidade);
+        
 
         $orderModel = new Orders;
-        $pedido = $orderModel->criarPedido($user, $product, $quantidade);
+        $pedido = $orderModel->criarPedido($user, $product);
 
         return [
             'user' => $user->toArray(),

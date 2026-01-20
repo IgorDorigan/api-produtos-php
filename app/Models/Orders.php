@@ -23,7 +23,7 @@ class Orders
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function criarPedido(User $user, Product $product, int $qtd)
+    public function criarPedido(User $user, Product $product)
     {
         $this->db->beginTransaction();
 
@@ -36,8 +36,12 @@ class Orders
                 ':product_id' => $product->id
             ]);
 
+            $id = (int)$this->db->lastInsertId(); // força ser int
+
             $this->db->commit();
-            return $this->db->lastInsertId();
+
+            return $id;
+
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;

@@ -12,12 +12,25 @@ use App\Middleware\RefreshMiddleware;
 // Rota para listar todos os usuarios
 $router->get('/users', [UserController::class, 'index']);
 
-// Rotas reponsáveis pela Autenticaçao do usuario.
+// Rota reponsáveis pela Autenticaçao do usuario.
 // Admin pode utilizar esta rota para criar um usuario
 $router->post('/register', [UserController::class, 'register']);
 
 // Rota responsavél pelo login
 $router->post('/login', [UserController::class, 'login']);
+
+// Rota para o usuario editar suas credencias
+
+$router->put('/update/profile', [UserController::class, 'updateProfile'], [
+    AuthMiddleware::class
+]);
+
+// Rota para o usuario editar parcialmente suas credencias
+$router->patch('/update/profile', [UserController::class, 'patchProfile'], [
+    AuthMiddleware::class
+]);
+
+
 
 // Rota responsavél por efetuar uma compra do usuario
 $router->post('/buy', [UserController::class, 'comprarProduto'], [
@@ -91,6 +104,4 @@ $router->delete('/delete/{id}', [ProductController::class, 'destroy'], [
 $router->get('/recommendation/{id}', [RecommendationController::class, 'getRecommendations'],[
     AuthMiddleware::class
 ]);
-
-
 

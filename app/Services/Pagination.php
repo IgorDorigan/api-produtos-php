@@ -11,13 +11,15 @@ class Pagination
     private $totalPages;
 
 
-    public function __construct($data, int $page = 1, int $limit = 10)
+    public function setData($data, int $page = 1, int $limit = 10)
     {
         $this->data = $data;
         $this->page = max(1, $page);
         $this->limit = max(1, $limit);
 
         $this->totalPages = (int) ceil(count($data) / $this->limit);
+
+        return $this;
     }
 
     public function getPageData()

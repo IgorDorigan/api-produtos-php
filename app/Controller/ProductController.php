@@ -14,26 +14,26 @@ class ProductController
 {
     private $valor;
 
-    private $db;
+    private $product;
 
-    public function __construct()
+    public function __construct(Product $product)
     {
-        $this->db = Database::getInstance()->getConnection();
+        $this->product = $product;
     }
 
-    public static function store()
+    public function store()
     {
         try {
             $data = ApiResponse::receive();
             
-            $product = ProductService::storeProduct($data);
+            $product = ProductService::storeProduct($data, $this->product);
             ApiResponse::send($product, true, 201, "Produto criado com sucesso");
         } catch (Exception $e) {
             ApiResponse::send(null, false, 400, $e->getMessage());
         }
     }
 
-    public static function update($id)
+    public function update($id)
     {
         try {
             $data = ApiResponse::receive();
@@ -42,7 +42,7 @@ class ProductController
 
             $data = Validate::validateFields($data, 'product');
 
-            $product = (new Product())->update($data);
+            $product = $this->product->update($data);
 
             ApiResponse::send($product, true, 200, "Produto atualizado com sucesso");
         } catch (Exception $e) {
@@ -52,7 +52,7 @@ class ProductController
         }
     }
 
-     public static function patch($id)
+     public function patch($id)
     {
         try {
             $data = ApiResponse::receive();
@@ -61,7 +61,7 @@ class ProductController
 
             $data = Validate::validateFields($data, 'product', false);
 
-            $product = (new Product())->update($data);
+            $product = $this->product->update($data);
 
             ApiResponse::send($product, true, 200, "Produto atualizado com sucesso");
         } catch (Exception $e) {

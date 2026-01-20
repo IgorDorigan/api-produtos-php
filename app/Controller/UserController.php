@@ -17,19 +17,30 @@ use Exception;
 
 class UserController
 {
+    private $user;
+    private $pagination;
+    private $product;
 
-    public static function index()
+    public function __construct(User $user, Pagination $pagination, Product $product)
+    {
+        $this->user = $user;
+        $this->pagination = $pagination;
+        $this->product = $product;
+    }
+
+
+    public function index()
     {
         try {
 
             $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
             $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 
-            $users = (new User())->index();
+            $users = $this->user->index();
 
             $users = array_map(fn($u) => $u->toArray(), $users);
 
-            $pagination = new Pagination($users, $page, $limit);
+            $pagination = $this->pagination->setData($users, $page, $limit);
 
             $response = [
                 'pagination' => $pagination->getInfo(),
@@ -43,7 +54,7 @@ class UserController
     }
 
 
-    public static function register()
+    public function register()
     {
         try {
             $dados = ApiResponse::receive();
@@ -60,7 +71,7 @@ class UserController
                 }
             }
 
-            $userExistente = (new User())->findByEmail($dados['email']);
+            $userExistente = $this->user->findByEmail($dados['email']);
             if ($userExistente) {
                 ApiResponse::send(null, false, 409, "E-mail já está cadastrado");
                 exit;
@@ -73,28 +84,25 @@ class UserController
                 return ApiResponse::send(null, false, 403, "Somente administradores podem definir a role do usuário");
             }
 
-            if ($isAdmin && isset($dados['role'])) {
-                // Admin criando um usuário com role customizada
-                $userCriado = AuthService::createByAdmin($dados);
-            } else {
-                // Usuário comum criando conta (ou admin criando sem role definida)
-                $userCriado = AuthService::authRegister($dados);
+            $dados['role'] = $dados['role'] ?? 'user';
+
+            $createUser = AuthService::authRegister($dados, $this->user);
+
+            if ($createUser === null) {
+                ApiResponse::send(null, false, 500, "Não foi possivel registrar-se agora.");
+                exit;
             }
 
-            if (!$userCriado) {
-                return ApiResponse::send(null, false, 500, "Erro ao criar usuário");
-            }
+            $createUser->setPassword(null);
 
-            $userCriado->setPassword(null);
-
-            return ApiResponse::send($userCriado->toArray(), true, 201, "Usuário criado com sucesso");
+            return ApiResponse::send($createUser->toArray(), true, 201, "Usuário criado com sucesso");
         } catch (\Throwable $e) {
             return ApiResponse::send(null, false, 500, "Erro interno: " . $e->getMessage());
         }
     }
 
 
-    public static function login()
+    public function login()
     {
         $dados = ApiResponse::receive();
 
@@ -108,7 +116,7 @@ class UserController
             exit;
         }
 
-        $userLogin = AuthService::authLogin($dados);
+        $userLogin = AuthService::authLogin($dados, $this->user);
 
         if ($userLogin !== null) {
 
@@ -129,53 +137,68 @@ class UserController
         ApiResponse::send(null, false, 400, "Credencias invalidas");
     }
 
-    public static function update($id)
+    public function updateProfile() // user
+    {
+        try {
+            $user = AuthMiddleware::$user;
+            $user = $this->performUpdate($user->id, ApiResponse::receive());
+
+            ApiResponse::send($user->toArray(), true, 200, "Perfil atualizado com sucesso");
+        } catch (Exception $e) {
+            $statusCode = $e->getMessage() === "campo" || $e->getMessage() === "nome"
+                ? 400
+                : 500;
+
+            ApiResponse::send($user->toArray(), true, $statusCode, $e->getMessage());
+        }
+    }
+
+    public function patchProfile() // user logado
+    {
+        try {
+            $user = AuthMiddleware::$user;
+            $data = ApiResponse::receive();
+            $user = $this->performUpdate($user->id, $data, false);
+
+            ApiResponse::send($user->toArray(), true, 200, "Perfil atualizado parcialmente com sucesso");
+        } catch (Exception $e) {
+            $statusCode = str_starts_with($e->getMessage(), "Campo") ? 400 : 500;
+            ApiResponse::send(null, false, $statusCode, $e->getMessage());
+        }
+    }
+
+    public function update($id) // admin
+    {
+        try {
+            $user = $this->performUpdate($id, ApiResponse::receive());
+            ApiResponse::send($user->toArray(), true, 200, "Usuário atualizado com sucesso");
+        } catch (Exception $e) {
+            $statusCode = $e->getMessage() === "campo" || $e->getMessage() === "nome"
+                ? 400
+                : 500;
+
+            ApiResponse::send($user->toArray(), true, $statusCode, $e->getMessage());
+        }
+    }
+
+    public function patch($id) // admin
     {
         try {
             $data = ApiResponse::receive();
 
-            $data['id'] = $id;
+            $user = $this->performUpdate($id, $data, false);
 
-            $data = Validate::validateFields($data, 'user');
-
-            $user = (new User())->update($data);
-
-            unset($user->password);
-
-
-            ApiResponse::send($user, true, 200, "Usuário atualizado com sucesso");
+            ApiResponse::send($user->toArray(), true, 200, "Usuário atualizado parcialmente com sucesso");
         } catch (Exception $e) {
-            $msg = $e->getMessage();
-            $status = str_starts_with($msg, "Campo") ? 400 : 500;
-            ApiResponse::send(null, false, $status, $msg);
+            $statusCode = str_starts_with($e->getMessage(), "Campo") ? 400 : 500;
+            ApiResponse::send(null, false, $statusCode, $e->getMessage());
         }
     }
 
-    public static function patch($id)
+    public function destroy($id)
     {
         try {
-            $data = ApiResponse::receive();
-
-            $data['id'] = $id;
-
-            $data = Validate::validateFields($data, 'user', false);
-
-            $user = (new User())->update($data);
-
-            ApiResponse::send($user, true, 200, "Usuário atualizado com sucesso");
-        } catch (Exception $e) {
-            $msg = $e->getMessage();
-            $status = str_starts_with($msg, "Campo") ? 400 : 500;
-            ApiResponse::send(null, false, $status, $msg);
-        }
-    }
-
-    public static function destroy($id)
-    {
-        try {
-
-            $user = new User();
-            $user->destroy($id);
+            $this->user->destroy($id);
 
             ApiResponse::send(null, true, 200, "Usuario deletado com sucesso");
         } catch (Exception $e) {
@@ -183,10 +206,18 @@ class UserController
         }
     }
 
+    private function performUpdate($userId, $data, bool $full = true)
+    {
+        $data['id'] = $userId;
+        $data = Validate::validateFields($data, 'user', !$full ? false : true);
+        $updatedUser = $this->user->update($data);
+        $updatedUser->setPassword(null);
+        return $updatedUser;
+    }
 
     // metodo responsavel por efetuar uma compra do usuario
 
-    public static function comprarProduto()
+    public function comprarProduto()
     {
         $userToken = AuthMiddleware::$user;
 
@@ -199,7 +230,7 @@ class UserController
 
         $userId = $dados['user_id'] ?? null;
         $productId = $dados['product_id'] ?? null;
-        $quantidade = $dados['quantidade'] ?? 1;
+        $quantidade = $dados['quantity'] ?? 1;
 
 
         if (!$userId || !$productId || $quantidade <= 0) {
@@ -208,8 +239,8 @@ class UserController
         }
 
 
-        $user = (new User())->findById($userId);
-        $product = (new Product())->findById($productId);
+        $user = $this->user->findById($userId);
+        $product = $this->product->findById($productId);
 
         if (!$user || !$product) {
             ApiResponse::send(null, false, 404, "Usuário ou produto não econtrado");
@@ -238,12 +269,12 @@ class UserController
         }
     }
 
-    public static function refreshToken()
+    public function refreshToken()
     {
 
         $decoded = RefreshMiddleware::$user;
 
-        $user = (new User())->findById($decoded->id);
+        $user = $this->user->findById($decoded->id);
 
         if (!$user) {
             ApiResponse::send(null, false, 404, "Usuário não encontrado");
